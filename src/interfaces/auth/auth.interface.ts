@@ -8,7 +8,7 @@ export interface IAuthRegister {
   password: string;
   email?: string;
   phoneNumber?: string;
-  fullName?: string;
+  gender: string;
 }
 
 export interface IUser {
@@ -18,6 +18,8 @@ export interface IUser {
   email?: string;
   fullName?: string;
   avatar?: string;
+  gender?: string;
+  role?: string;
   createdAt?: string;
 }
 

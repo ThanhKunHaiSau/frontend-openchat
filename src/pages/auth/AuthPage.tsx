@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { AuthShowcase, SocialAuthButtons, LoginForm, RegisterForm } from './components';
 import { Toast, type ToastMessage } from '../../components/common';
 import { authService } from '../../services';
+import { useAuth } from '../../contexts';
 import type { IAuthLogin, IAuthRegister } from '../../interfaces';
 import './AuthPage.css';
 
 export const AuthPage: React.FC = () => {
+  const { login } = useAuth();
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [isLoading, setIsLoading] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -48,8 +50,7 @@ export const AuthPage: React.FC = () => {
   const handleLoginSubmit = async (data: IAuthLogin) => {
     setIsLoading(true);
     try {
-      // Gọi service API sang backend (nếu backend chưa bật route thì fallback mock nhẹ nhàng)
-      const res = await authService.login(data);
+      const res = await login(data);
       console.log('res', res);
       addToast('success', 'Đăng nhập thành công', res.message || `Chào mừng ${data.email}!`);
     } catch (err: any) {
@@ -62,10 +63,8 @@ export const AuthPage: React.FC = () => {
   const handleRegisterSubmit = async (data: IAuthRegister) => {
     setIsLoading(true);
     try {
-      const res = await authService.register(data).catch(() => {
-        return { message: 'Đăng ký tài khoản thành công!' };
-      });
-      addToast('success', 'Tạo tài khoản thành công', res.message || 'Bạn có thể đăng nhập ngay.');
+      const res = await authService.register(data);
+      addToast('success', 'Đăng ký thành công', res.message || 'Bạn có thể đăng nhập ngay bằng tài khoản vừa tạo.');
       setAuthMode('login');
     } catch (err: any) {
       addToast('error', 'Lỗi đăng ký', err.message || 'Không thể đăng ký tài khoản');

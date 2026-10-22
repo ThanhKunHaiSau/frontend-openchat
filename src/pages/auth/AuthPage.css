@@ -516,6 +516,98 @@
   color: var(--text-muted);
 }
 
+/* Gender Selection Group */
+.gender-selection-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.gender-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.gender-options-row {
+  display: flex;
+  gap: 12px;
+}
+
+.gender-checkbox-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+
+.gender-checkbox-card:hover {
+  background: var(--bg-card-hover);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-main);
+}
+
+.gender-checkbox-card.selected {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: var(--primary);
+  color: #fff;
+  box-shadow: 0 0 14px var(--primary-glow);
+}
+
+.gender-checkbox-card input[type="radio"],
+.gender-checkbox-card input[type="checkbox"] {
+  display: none;
+}
+
+.gender-custom-box {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 1.5px solid var(--input-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  transition: all var(--transition-fast);
+}
+
+.gender-checkbox-card.selected .gender-custom-box {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+/* Password Match Indicator */
+.password-match-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  margin-top: -6px;
+  margin-bottom: 12px;
+  padding-left: 4px;
+}
+
+.password-match-indicator.matched {
+  color: var(--accent-emerald);
+}
+
+.password-match-indicator.mismatched {
+  color: var(--accent-rose);
+}
+
 /* Extra Row (Remember / Forgot) */
 .form-extra-row {
   display: flex;

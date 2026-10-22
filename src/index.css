@@ -115,6 +115,12 @@ html, body {
   40%, 80% { transform: translateX(6px); }
 }
 
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .animate-fade-in {
   animation: fadeIn 0.35s ease-out forwards;
 }
@@ -122,3 +128,4 @@ html, body {
 .animate-shake {
   animation: shake 0.4s ease-in-out;
 }
+
