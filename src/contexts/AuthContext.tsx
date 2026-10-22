@@ -7,8 +7,11 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (payload: IAuthLogin) => Promise<IAuthResponse>;
+  loginFacebook: (fbAccessToken: string) => Promise<IAuthResponse>;
+  loginGoogle: (googleAccessToken: string) => Promise<IAuthResponse>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateUser: (updatedData: Partial<IUser>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -70,6 +73,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return response;
   };
 
+  const loginFacebook = async (fbAccessToken: string): Promise<IAuthResponse> => {
+    const response = await authService.loginWithFacebook(fbAccessToken);
+    if (response.success) {
+      if (response.data?.user) {
+        setUser(response.data.user);
+      } else {
+        try {
+          const userData = await authService.getMe();
+          setUser(userData);
+        } catch (e) {
+          console.error('Không thể lấy thông tin user sau khi login Facebook:', e);
+        }
+      }
+    }
+    return response;
+  };
+
+  const loginGoogle = async (googleAccessToken: string): Promise<IAuthResponse> => {
+    const response = await authService.loginWithGoogle(googleAccessToken);
+    if (response.success) {
+      if (response.data?.user) {
+        setUser(response.data.user);
+      } else {
+        try {
+          const userData = await authService.getMe();
+          setUser(userData);
+        } catch (e) {
+          console.error('Không thể lấy thông tin user sau khi login Google:', e);
+        }
+      }
+    }
+    return response;
+  };
+
   const logout = async () => {
     await authService.logout();
     setUser(null);
@@ -84,6 +121,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateUser = (updatedData: Partial<IUser>) => {
+    setUser((prev) => (prev ? { ...prev, ...updatedData } : null));
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -91,8 +132,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         isAuthenticated: !!user,
         login,
+        loginFacebook,
+        loginGoogle,
         logout,
         refreshUser,
+        updateUser,
       }}
     >
       {children}

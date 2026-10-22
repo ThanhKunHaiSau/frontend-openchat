@@ -24,7 +24,9 @@ import {
   Circle,
   X,
   FileText,
+  Settings,
 } from 'lucide-react';
+import { ProfileModal, Toast, type ToastMessage } from '../../components';
 import './ChatPage.css';
 
 export const ChatPage: React.FC = () => {
@@ -37,6 +39,19 @@ export const ChatPage: React.FC = () => {
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showRightPanel, setShowRightPanel] = useState(true);
+
+  // Profile modal and toast state
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const addToast = (type: ToastMessage['type'], title: string, message: string) => {
+    const id = `toast-${Date.now()}-${Math.random()}`;
+    setToasts((prev) => [...prev, { id, type, title, message }]);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -74,6 +89,7 @@ export const ChatPage: React.FC = () => {
       id: `msg-${Date.now()}`,
       senderId: 'me',
       senderName: user?.username || 'Bạn',
+      senderAvatar: user?.avatar,
       content: inputText.trim(),
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isMe: true,
@@ -177,10 +193,26 @@ export const ChatPage: React.FC = () => {
         </div>
 
         <div className="rail-bottom">
-          <div className="rail-user-avatar" title={`Đang đăng nhập: ${user?.username} (${user?.role})`}>
-            {user?.username ? user.username.charAt(0).toUpperCase() : 'U'}
+          <div
+            className="rail-user-avatar"
+            onClick={() => setIsProfileModalOpen(true)}
+            title={`Hồ sơ: ${user?.username || 'Người dùng'} (Click để chỉnh sửa)`}
+          >
+            {user?.avatar ? (
+              <img src={user.avatar} alt={user?.username || 'Avatar'} className="rail-avatar-img" />
+            ) : (
+              user?.username ? user.username.charAt(0).toUpperCase() : 'U'
+            )}
             <span className="rail-online-dot" />
           </div>
+          <button
+            type="button"
+            className="rail-btn btn-rail-profile"
+            onClick={() => setIsProfileModalOpen(true)}
+            title="Cài đặt tài khoản & Avatar"
+          >
+            <Settings size={18} />
+          </button>
           <button
             type="button"
             className="rail-btn btn-rail-logout"
@@ -567,6 +599,16 @@ export const ChatPage: React.FC = () => {
           </div>
         </aside>
       )}
+
+      {/* Profile & Avatar Settings Modal */}
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        onToast={addToast}
+      />
+
+      {/* Global Toast Notifications */}
+      <Toast toasts={toasts} onClose={removeToast} />
     </div>
   );
 };

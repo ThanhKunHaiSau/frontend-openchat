@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import type { IAuthLogin, IAuthRegister, IAuthResponse, IUser } from '../interfaces';
+import type { IAuthLogin, IAuthRegister, IAuthResponse, IUser, IUpdateProfilePayload } from '../interfaces';
 
 export const authService = {
   login: async (payload: IAuthLogin): Promise<IAuthResponse> => {
@@ -22,6 +22,28 @@ export const authService = {
       phone: payload.phoneNumber,
     };
     const response = await apiClient.post<IAuthResponse>('/auth/register', body);
+    return response.data;
+  },
+
+  loginWithFacebook: async (fbAccessToken: string): Promise<IAuthResponse> => {
+    const response = await apiClient.post<IAuthResponse>('/auth/facebook', { accessToken: fbAccessToken });
+    if (response.data.success && response.data.data?.accessToken) {
+      localStorage.setItem('access_token', response.data.data.accessToken);
+      if (response.data.data.refreshToken) {
+        localStorage.setItem('refresh_token', response.data.data.refreshToken);
+      }
+    }
+    return response.data;
+  },
+
+  loginWithGoogle: async (googleAccessToken: string): Promise<IAuthResponse> => {
+    const response = await apiClient.post<IAuthResponse>('/auth/google', { accessToken: googleAccessToken });
+    if (response.data.success && response.data.data?.accessToken) {
+      localStorage.setItem('access_token', response.data.data.accessToken);
+      if (response.data.data.refreshToken) {
+        localStorage.setItem('refresh_token', response.data.data.refreshToken);
+      }
+    }
     return response.data;
   },
 
@@ -58,6 +80,29 @@ export const authService = {
   verifyEmail: async (token: string): Promise<any> => {
     const response = await apiClient.get<{ success: boolean; data: any; message?: string }>(
       `/auth/verify-email/${token}`
+    );
+    return response.data;
+  },
+
+  uploadAvatar: async (file: File): Promise<{ success: boolean; data: { avatar: string; user?: IUser }; message?: string }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.put<{ success: boolean; data: { avatar: string; user?: IUser }; message?: string }>(
+      '/auth/avatar',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data;
+  },
+
+  updateProfile: async (payload: IUpdateProfilePayload): Promise<{ success: boolean; data: IUser; message?: string }> => {
+    const response = await apiClient.put<{ success: boolean; data: IUser; message?: string }>(
+      '/auth/profile',
+      payload
     );
     return response.data;
   },

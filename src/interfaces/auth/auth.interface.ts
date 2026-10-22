@@ -19,8 +19,17 @@ export interface IUser {
   fullName?: string;
   avatar?: string;
   gender?: string;
+  phone?: number | string | null;
+  address?: string;
   role?: string;
   createdAt?: string;
+}
+
+export interface IUpdateProfilePayload {
+  username?: string;
+  gender?: string;
+  phone?: number | string | null;
+  address?: string;
 }
 
 export interface IAuthResponse {

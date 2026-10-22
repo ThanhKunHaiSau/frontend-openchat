@@ -3,11 +3,13 @@ import { AuthShowcase, SocialAuthButtons, LoginForm, RegisterForm } from './comp
 import { Toast, type ToastMessage } from '../../components/common';
 import { authService } from '../../services';
 import { useAuth } from '../../contexts';
+import { triggerFacebookLogin } from '../../utils/facebook';
+import { triggerGoogleLogin } from '../../utils/google';
 import type { IAuthLogin, IAuthRegister } from '../../interfaces';
 import './AuthPage.css';
 
 export const AuthPage: React.FC = () => {
-  const { login } = useAuth();
+  const { login, loginFacebook, loginGoogle } = useAuth();
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [isLoading, setIsLoading] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -28,22 +30,42 @@ export const AuthPage: React.FC = () => {
   };
 
   // Social Auth Handlers
-  const handleGoogleAuth = () => {
+  const handleGoogleAuth = async () => {
     setIsLoading(true);
-    addToast('info', 'Google OAuth', 'Đang kết nối xác thực tài khoản Google...');
-    setTimeout(() => {
+    try {
+      addToast('info', 'Google Login', 'Đang mở cửa sổ đăng nhập Google...');
+      const googleToken = await triggerGoogleLogin();
+      const res = await loginGoogle(googleToken);
+      addToast('success', 'Đăng nhập thành công', res.message || 'Đăng nhập Google thành công!');
+    } catch (err: any) {
+      console.error('Lỗi đăng nhập Google:', err);
+      addToast(
+        'error',
+        'Đăng nhập Google thất bại',
+        err.response?.data?.message || err.message || 'Không thể đăng nhập bằng Google'
+      );
+    } finally {
       setIsLoading(false);
-      addToast('success', 'Thành công', 'Đã liên kết và đăng nhập bằng Google!');
-    }, 1200);
+    }
   };
 
-  const handleFacebookAuth = () => {
+  const handleFacebookAuth = async () => {
     setIsLoading(true);
-    addToast('info', 'Facebook Login', 'Đang kết nối xác thực Facebook...');
-    setTimeout(() => {
+    try {
+      addToast('info', 'Facebook Login', 'Đang mở cửa sổ đăng nhập Facebook...');
+      const fbAccessToken = await triggerFacebookLogin();
+      const res = await loginFacebook(fbAccessToken);
+      addToast('success', 'Đăng nhập thành công', res.message || 'Đăng nhập Facebook thành công!');
+    } catch (err: any) {
+      console.error('Lỗi đăng nhập Facebook:', err);
+      addToast(
+        'error',
+        'Đăng nhập Facebook thất bại',
+        err.response?.data?.message || err.message || 'Không thể đăng nhập bằng Facebook'
+      );
+    } finally {
       setIsLoading(false);
-      addToast('success', 'Thành công', 'Đã liên kết và đăng nhập bằng Facebook!');
-    }, 1200);
+    }
   };
 
   // Form Submissions
