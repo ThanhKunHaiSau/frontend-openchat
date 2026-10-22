@@ -54,5 +54,12 @@ export const authService = {
       localStorage.removeItem('refresh_token');
     }
   },
+
+  verifyEmail: async (token: string): Promise<any> => {
+    const response = await apiClient.get<{ success: boolean; data: any; message?: string }>(
+      `/auth/verify-email/${token}`
+    );
+    return response.data;
+  },
 };
 

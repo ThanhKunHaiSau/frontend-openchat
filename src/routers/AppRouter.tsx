@@ -1,10 +1,19 @@
 import React from 'react';
 import { useAuth } from '../contexts';
-import { AuthPage } from '../pages/auth';
+import { AuthPage, VerifyEmailPage } from '../pages/auth';
 import { ChatPage } from '../pages/chat';
 
 export const AppRouter: React.FC = () => {
   const { user, isLoading, isAuthenticated } = useAuth();
+
+  // Kiểm tra nếu người dùng click link xác thực từ email (/verify-email/... hoặc ?token=...)
+  const isVerifyEmailRoute =
+    window.location.pathname.startsWith('/verify-email') ||
+    new URLSearchParams(window.location.search).has('token');
+
+  if (isVerifyEmailRoute) {
+    return <VerifyEmailPage />;
+  }
 
   // Hiển thị splash/loading trong lúc verify token khi mới refresh web
   if (isLoading) {
