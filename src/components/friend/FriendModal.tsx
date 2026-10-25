@@ -139,10 +139,9 @@ export const FriendModal: React.FC<FriendModalProps> = ({
       const res = await friendService.sendFriendRequest(targetUser._id);
       if (res.success) {
         onToast('success', 'Thành công', `Đã gửi lời mời kết bạn tới ${targetUser.fullName || targetUser.username}`);
-        // Cập nhật trạng thái hiển thị
-        setSearchResults((prev) =>
-          prev.map((u) => (u._id === targetUser._id ? { ...u, relationshipStatus: 'pending_sent' } : u))
-        );
+        // Ẩn người vừa kết bạn khỏi danh sách tìm kiếm
+        setSearchResults((prev) => prev.filter((u) => u._id !== targetUser._id));
+        setTotalUsers((prev) => Math.max(0, prev - 1));
         loadRequestsData();
       }
     } catch (err: any) {
@@ -164,9 +163,8 @@ export const FriendModal: React.FC<FriendModalProps> = ({
           ...prev,
           received: prev.received.filter((r) => r._id !== requestId),
         }));
-        setSearchResults((prev) =>
-          prev.map((u) => (u._id === fromUser._id ? { ...u, relationshipStatus: 'friend' } : u))
-        );
+        setSearchResults((prev) => prev.filter((u) => u._id !== fromUser._id));
+        setTotalUsers((prev) => Math.max(0, prev - 1));
         loadFriendsData();
       }
     } catch (err: any) {
