@@ -73,7 +73,6 @@ export const AuthPage: React.FC = () => {
     setIsLoading(true);
     try {
       const res = await login(data);
-      console.log('res', res);
       addToast('success', 'Đăng nhập thành công', res.message || `Chào mừng ${data.email}!`);
     } catch (err: any) {
       addToast('error', 'Lỗi đăng nhập', err.message || 'Không thể đăng nhập');

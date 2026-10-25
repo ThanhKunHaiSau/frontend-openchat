@@ -25,8 +25,11 @@ import {
   X,
   FileText,
   Settings,
+  UserPlus,
 } from 'lucide-react';
-import { ProfileModal, Toast, type ToastMessage } from '../../components';
+import { ProfileModal, FriendModal, Toast, type ToastMessage } from '../../components';
+import { friendService } from '../../services';
+import type { IFriendUser } from '../../interfaces';
 import './ChatPage.css';
 
 export const ChatPage: React.FC = () => {
@@ -42,7 +45,21 @@ export const ChatPage: React.FC = () => {
 
   // Profile modal and toast state
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isFriendModalOpen, setIsFriendModalOpen] = useState(false);
+  const [pendingReqCount, setPendingReqCount] = useState(0);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // Lấy số lượng lời mời kết bạn để hiển thị badge thông báo
+  useEffect(() => {
+    friendService
+      .getFriendRequests()
+      .then((res) => {
+        if (res?.received) {
+          setPendingReqCount(res.received.length);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const addToast = (type: ToastMessage['type'], title: string, message: string) => {
     const id = `toast-${Date.now()}-${Math.random()}`;
@@ -51,6 +68,49 @@ export const ChatPage: React.FC = () => {
 
   const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  // Mở khung trò chuyện với bạn bè (từ FriendModal)
+  const handleStartChatWithFriend = (friend: IFriendUser) => {
+    const existing = conversations.find(
+      (c) =>
+        c.id === friend._id ||
+        c.name.toLowerCase() === (friend.fullName || friend.username).toLowerCase()
+    );
+
+    if (existing) {
+      setActiveConvId(existing.id);
+      addToast('info', 'Mở hội thoại', `Đang trò chuyện với ${existing.name}`);
+    } else {
+      const newConv: IConversation = {
+        id: friend._id || `conv-${Date.now()}`,
+        name: friend.fullName || friend.username,
+        avatar:
+          friend.avatar ||
+          'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+        isGroup: false,
+        lastMessage: 'Đã kết nối bạn bè! Hãy gửi tin nhắn chào hỏi 👋',
+        lastMessageTime: 'Vừa xong',
+        unreadCount: 0,
+        isOnline: !!friend.isOnline,
+        role: 'Bạn bè',
+        messages: [
+          {
+            id: `msg-welcome-${Date.now()}`,
+            senderId: friend._id,
+            senderName: friend.fullName || friend.username,
+            senderAvatar: friend.avatar,
+            content: `Chào bạn! Chúng ta đã kết bạn với nhau rồi nhé 👋`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            isMe: false,
+          },
+        ],
+      };
+
+      setConversations((prev) => [newConv, ...prev]);
+      setActiveConvId(newConv.id);
+      addToast('success', 'Bắt đầu trò chuyện', `Đã mở hội thoại với ${newConv.name}`);
+    }
   };
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -182,6 +242,15 @@ export const ChatPage: React.FC = () => {
             <button type="button" className="rail-btn active" title="Tin nhắn">
               <MessageSquare size={20} />
             </button>
+            <button
+              type="button"
+              className={`rail-btn ${isFriendModalOpen ? 'active' : ''}`}
+              title="Tìm bạn bè & Lời mời kết bạn"
+              onClick={() => setIsFriendModalOpen(true)}
+            >
+              <UserPlus size={20} />
+              {pendingReqCount > 0 && <span className="dot-unread" />}
+            </button>
             <button type="button" className="rail-btn" title="Nhóm & Kênh">
               <Users size={20} />
             </button>
@@ -228,11 +297,22 @@ export const ChatPage: React.FC = () => {
       <section className="conv-list-panel">
         <div className="conv-header">
           <div className="conv-title-row">
-            <h2>Hộp thoại</h2>
-            <div className="live-status-chip">
-              <span className="chip-dot" />
-              <span>Real-time</span>
+            <div className="conv-title-left">
+              <h2>Hộp thoại</h2>
+              <div className="live-status-chip">
+                <span className="chip-dot" />
+                <span>Real-time</span>
+              </div>
             </div>
+            <button
+              type="button"
+              className="btn-open-friend-modal"
+              onClick={() => setIsFriendModalOpen(true)}
+              title="Tìm kiếm bạn mới & Quản lý kết bạn"
+            >
+              <UserPlus size={15} />
+              <span>Thêm bạn</span>
+            </button>
           </div>
 
           {/* Search Box */}
@@ -305,6 +385,14 @@ export const ChatPage: React.FC = () => {
             <div className="no-conv-found">
               <MessageSquare size={32} opacity={0.3} />
               <p>Không tìm thấy cuộc trò chuyện nào</p>
+              <button
+                type="button"
+                className="btn-search-new-friends"
+                onClick={() => setIsFriendModalOpen(true)}
+              >
+                <UserPlus size={14} />
+                <span>Tìm bạn mới trên hệ thống</span>
+              </button>
             </div>
           ) : (
             filteredConversations.map((c) => {
@@ -605,6 +693,22 @@ export const ChatPage: React.FC = () => {
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
         onToast={addToast}
+      />
+
+      {/* Friend & Contact Search / Add Modal */}
+      <FriendModal
+        isOpen={isFriendModalOpen}
+        onClose={() => {
+          setIsFriendModalOpen(false);
+          friendService
+            .getFriendRequests()
+            .then((res) => {
+              if (res?.received) setPendingReqCount(res.received.length);
+            })
+            .catch(() => {});
+        }}
+        onToast={addToast}
+        onStartChat={handleStartChatWithFriend}
       />
 
       {/* Global Toast Notifications */}
