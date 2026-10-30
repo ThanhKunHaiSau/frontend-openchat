@@ -15,6 +15,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { friendService } from '../../services/friend.service';
+import { useAuth, useSocket } from '../../contexts';
 import type { IFriendUser, IFriendRequest } from '../../interfaces';
 import './FriendModal.css';
 
@@ -31,6 +32,8 @@ export const FriendModal: React.FC<FriendModalProps> = ({
   onToast,
   onStartChat,
 }) => {
+  const { user } = useAuth();
+  const { socket, isConnected } = useSocket();
   const [activeTab, setActiveTab] = useState<'search' | 'requests' | 'friends'>('search');
   const [requestSubTab, setRequestSubTab] = useState<'received' | 'sent'>('received');
 
@@ -139,6 +142,14 @@ export const FriendModal: React.FC<FriendModalProps> = ({
       const res = await friendService.sendFriendRequest(targetUser._id);
       if (res.success) {
         onToast('success', 'Thành công', `Đã gửi lời mời kết bạn tới ${targetUser.fullName || targetUser.username}`);
+
+        // Bắn socket thông báo sự kiện add_contact
+        if (socket && isConnected) {
+          socket.emit('add_contact', {
+            contactId: targetUser._id,
+          });
+        }
+
         // Ẩn người vừa kết bạn khỏi danh sách tìm kiếm
         setSearchResults((prev) => prev.filter((u) => u._id !== targetUser._id));
         setTotalUsers((prev) => Math.max(0, prev - 1));
@@ -211,6 +222,12 @@ export const FriendModal: React.FC<FriendModalProps> = ({
           setSearchResults((prev) =>
             prev.map((u) => (u._id === targetUserId ? { ...u, relationshipStatus: 'none' } : u))
           );
+        }
+        // Bắn socket thông báo sự kiện add_contact
+        if (socket && isConnected) {
+          socket.emit('cancel_contact', {
+            contactId: targetUserId,
+          });
         }
       }
     } catch (err: any) {
@@ -416,11 +433,10 @@ export const FriendModal: React.FC<FriendModalProps> = ({
                               <span className="card-username">@{targetUser.username}</span>
                               {targetUser.gender && (
                                 <span
-                                  className={`user-gender-tag ${
-                                    targetUser.gender.toLowerCase() === 'female'
-                                      ? 'gender-female'
-                                      : 'gender-male'
-                                  }`}
+                                  className={`user-gender-tag ${targetUser.gender.toLowerCase() === 'female'
+                                    ? 'gender-female'
+                                    : 'gender-male'
+                                    }`}
                                 >
                                   {targetUser.gender}
                                 </span>
@@ -435,88 +451,88 @@ export const FriendModal: React.FC<FriendModalProps> = ({
                           </div>
                         </div>
 
-                      {/* Action Button based on relationship status */}
-                      <div className="card-actions-wrapper">
-                        {status === 'none' && (
-                          <button
-                            type="button"
-                            className="btn-friend-action btn-primary-add"
-                            disabled={isLoadingThis}
-                            onClick={() => handleSendFriendRequest(targetUser)}
-                          >
-                            {isLoadingThis ? (
-                              <Loader2 size={15} className="spin-loader" />
-                            ) : (
-                              <UserPlus size={15} />
-                            )}
-                            <span>Kết bạn</span>
-                          </button>
-                        )}
+                        {/* Action Button based on relationship status */}
+                        <div className="card-actions-wrapper">
+                          {status === 'none' && (
+                            <button
+                              type="button"
+                              className="btn-friend-action btn-primary-add"
+                              disabled={isLoadingThis}
+                              onClick={() => handleSendFriendRequest(targetUser)}
+                            >
+                              {isLoadingThis ? (
+                                <Loader2 size={15} className="spin-loader" />
+                              ) : (
+                                <UserPlus size={15} />
+                              )}
+                              <span>Kết bạn</span>
+                            </button>
+                          )}
 
-                        {status === 'pending_sent' && (
-                          <span className="status-badge-pending">
-                            <Clock size={13} />
-                            <span>Đã gửi lời mời</span>
-                          </span>
-                        )}
+                          {status === 'pending_sent' && (
+                            <span className="status-badge-pending">
+                              <Clock size={13} />
+                              <span>Đã gửi lời mời</span>
+                            </span>
+                          )}
 
-                        {status === 'pending_received' && (
-                          <button
-                            type="button"
-                            className="btn-friend-action btn-accept-request"
-                            onClick={() => setActiveTab('requests')}
-                          >
-                            <Clock size={15} />
-                            <span>Xem lời mời</span>
-                          </button>
-                        )}
+                          {status === 'pending_received' && (
+                            <button
+                              type="button"
+                              className="btn-friend-action btn-accept-request"
+                              onClick={() => setActiveTab('requests')}
+                            >
+                              <Clock size={15} />
+                              <span>Xem lời mời</span>
+                            </button>
+                          )}
 
-                        {status === 'friend' && (
-                          <button
-                            type="button"
-                            className="btn-friend-action btn-chat-friend"
-                            onClick={() => handleStartChatWith(targetUser)}
-                          >
-                            <MessageCircle size={15} />
-                            <span>Nhắn tin</span>
-                          </button>
-                        )}
+                          {status === 'friend' && (
+                            <button
+                              type="button"
+                              className="btn-friend-action btn-chat-friend"
+                              onClick={() => handleStartChatWith(targetUser)}
+                            >
+                              <MessageCircle size={15} />
+                              <span>Nhắn tin</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Phân trang */}
-              {totalPage > 1 && (
-                <div className="friend-pagination-row">
-                  <button
-                    type="button"
-                    className="btn-pagination"
-                    disabled={page <= 1 || isSearching}
-                    onClick={() => fetchUsersList(searchQuery, page - 1)}
-                  >
-                    <ChevronLeft size={16} />
-                    <span>Trang trước</span>
-                  </button>
-                  <span className="pagination-info">
-                    Trang {page} / {totalPage} (Tổng {totalUsers} người)
-                  </span>
-                  <button
-                    type="button"
-                    className="btn-pagination"
-                    disabled={page >= totalPage || isSearching}
-                    onClick={() => fetchUsersList(searchQuery, page + 1)}
-                  >
-                    <span>Trang sau</span>
-                    <ChevronRight size={16} />
-                  </button>
+                    );
+                  })}
                 </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
+
+                {/* Phân trang */}
+                {totalPage > 1 && (
+                  <div className="friend-pagination-row">
+                    <button
+                      type="button"
+                      className="btn-pagination"
+                      disabled={page <= 1 || isSearching}
+                      onClick={() => fetchUsersList(searchQuery, page - 1)}
+                    >
+                      <ChevronLeft size={16} />
+                      <span>Trang trước</span>
+                    </button>
+                    <span className="pagination-info">
+                      Trang {page} / {totalPage} (Tổng {totalUsers} người)
+                    </span>
+                    <button
+                      type="button"
+                      className="btn-pagination"
+                      disabled={page >= totalPage || isSearching}
+                      onClick={() => fetchUsersList(searchQuery, page + 1)}
+                    >
+                      <span>Trang sau</span>
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
 
         {/* Tab 2: Friend Requests */}
         {activeTab === 'requests' && (
