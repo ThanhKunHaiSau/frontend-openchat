@@ -15,7 +15,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { friendService } from '../../services/friend.service';
-import { useAuth, useSocket } from '../../contexts';
+import { useSocket, useSocketEvent } from '../../contexts';
 import type { IFriendUser, IFriendRequest } from '../../interfaces';
 import './FriendModal.css';
 
@@ -32,7 +32,6 @@ export const FriendModal: React.FC<FriendModalProps> = ({
   onToast,
   onStartChat,
 }) => {
-  const { user } = useAuth();
   const { socket, isConnected } = useSocket();
   const [activeTab, setActiveTab] = useState<'search' | 'requests' | 'friends'>('search');
   const [requestSubTab, setRequestSubTab] = useState<'received' | 'sent'>('received');
@@ -132,6 +131,32 @@ export const FriendModal: React.FC<FriendModalProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
+
+  // Lắng nghe sự kiện người khác gửi kết bạn cho mình theo Realtime
+  useSocketEvent('res_add_contact', (data: any) => {
+    if (isOpen) {
+      loadRequestsData();
+      const senderId = data?.userCurent?.id;
+      if (senderId) {
+        setSearchResults((prev) =>
+          prev.map((u) => (u._id === senderId ? { ...u, relationshipStatus: 'pending_received' } : u))
+        );
+      }
+    }
+  });
+
+  // Lắng nghe sự kiện đối phương huỷ lời mời kết bạn Realtime
+  useSocketEvent('res_cancel_contact', (data: any) => {
+    if (isOpen) {
+      loadRequestsData();
+      const senderId = data?.id;
+      if (senderId) {
+        setSearchResults((prev) =>
+          prev.map((u) => (u._id === senderId ? { ...u, relationshipStatus: 'none' } : u))
+        );
+      }
+    }
+  });
 
   if (!isOpen) return null;
 

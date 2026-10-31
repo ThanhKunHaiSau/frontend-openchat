@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useAuth } from '../../contexts';
+import { useAuth, useSocketEvent } from '../../contexts';
 import {
   INITIAL_CONVERSATIONS,
   type IConversation,
@@ -27,9 +27,10 @@ import {
   Settings,
   UserPlus,
 } from 'lucide-react';
-import { ProfileModal, FriendModal, Toast, type ToastMessage } from '../../components';
-import { friendService } from '../../services';
-import type { IFriendUser } from '../../interfaces';
+import { ProfileModal, FriendModal, Toast, NotificationDropdown, type ToastMessage } from '../../components';
+import { friendService, notificationService } from '../../services';
+import type { IFriendUser, INotificationItem } from '../../interfaces';
+import { playNotificationSound } from '../../utils/sound';
 import './ChatPage.css';
 
 export const ChatPage: React.FC = () => {
@@ -49,8 +50,53 @@ export const ChatPage: React.FC = () => {
   const [pendingReqCount, setPendingReqCount] = useState(0);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
-  // Lấy số lượng lời mời kết bạn để hiển thị badge thông báo
+  // Notification panel state
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [notifications, setNotifications] = useState<INotificationItem[]>(() => {
+    try {
+      const stored = localStorage.getItem('openchat_notifications');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Lưu thông báo vào localStorage
   useEffect(() => {
+    try {
+      localStorage.setItem('openchat_notifications', JSON.stringify(notifications));
+    } catch (e) {
+      console.warn('Không thể lưu notifications vào localStorage', e);
+    }
+  }, [notifications]);
+
+  const unreadNotifCount = notifications.filter((n) => !n.isRead).length;
+
+  const handleMarkAsRead = (id: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+    );
+    notificationService.markAsRead(id);
+  };
+
+  const handleMarkAllAsRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    notificationService.markAllAsRead();
+  };
+
+  const handleClearAllNotifications = () => {
+    setNotifications([]);
+    notificationService.clearAll();
+  };
+
+  // Lấy thông báo từ DB và số lượng lời mời kết bạn khi tải trang
+  useEffect(() => {
+    notificationService.getNotifications().then((list) => {
+      if (list && list.length > 0) {
+        setNotifications(list);
+      }
+    });
+
     friendService
       .getFriendRequests()
       .then((res) => {
@@ -60,6 +106,54 @@ export const ChatPage: React.FC = () => {
       })
       .catch(() => {});
   }, []);
+
+  // Lắng nghe sự kiện nhận lời mời kết bạn Realtime từ Backend
+  useSocketEvent('res_add_contact', (data: any) => {
+    console.log('⚡ [Socket] Nhận lời mời kết bạn:', data);
+    const senderName = data?.userCurent?.username || 'Một người dùng';
+    const message = data?.message || `${senderName} vừa gửi cho bạn một lời mời kết bạn!`;
+
+    // 1. Phát âm thanh chuông thông báo
+    playNotificationSound();
+
+    // 2. Thêm vào danh sách thông báo của Chuông
+    const newNotif: INotificationItem = {
+      id: `notif-${Date.now()}-${Math.random()}`,
+      title: 'Lời mời kết bạn mới',
+      message,
+      type: 'friend_request',
+      senderName,
+      senderAvatar: data?.userCurent?.avatar,
+      senderId: data?.userCurent?.id,
+      createdAt: data?.createdAt || new Date().toISOString(),
+      isRead: false,
+      data,
+    };
+    setNotifications((prev) => [newNotif, ...prev]);
+
+    // 3. Bật thông báo Toast
+    addToast('info', 'Lời mời kết bạn mới 👋', message);
+
+    // 4. Tăng số đếm lời mời đang chờ trên badge icon
+    setPendingReqCount((prev) => prev + 1);
+  });
+
+  // Lắng nghe sự kiện khi đối phương huỷ lời mời kết bạn Realtime
+  useSocketEvent('res_cancel_contact', (data: any) => {
+    console.log('⚡ [Socket] Đối phương đã huỷ lời mời kết bạn:', data);
+    setPendingReqCount((prev) => Math.max(0, prev - 1));
+
+    const senderName = data?.username || 'Đối phương';
+    const newNotif: INotificationItem = {
+      id: `notif-${Date.now()}-${Math.random()}`,
+      title: 'Huỷ lời mời kết bạn',
+      message: `${senderName} đã huỷ lời mời kết bạn gửi đến bạn.`,
+      type: 'system',
+      createdAt: new Date().toISOString(),
+      isRead: false,
+    };
+    setNotifications((prev) => [newNotif, ...prev]);
+  });
 
   const addToast = (type: ToastMessage['type'], title: string, message: string) => {
     const id = `toast-${Date.now()}-${Math.random()}`;
@@ -254,10 +348,33 @@ export const ChatPage: React.FC = () => {
             <button type="button" className="rail-btn" title="Nhóm & Kênh">
               <Users size={20} />
             </button>
-            <button type="button" className="rail-btn" title="Thông báo">
-              <Bell size={20} />
-              <span className="dot-unread" />
-            </button>
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                className={`rail-btn ${isNotificationOpen ? 'active' : ''}`}
+                title="Thông báo"
+                onClick={() => setIsNotificationOpen((prev) => !prev)}
+              >
+                <Bell size={20} />
+                {unreadNotifCount > 0 && (
+                  <span className="rail-btn-badge">
+                    {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+                  </span>
+                )}
+              </button>
+
+              <NotificationDropdown
+                isOpen={isNotificationOpen}
+                onClose={() => setIsNotificationOpen(false)}
+                notifications={notifications}
+                onMarkAsRead={handleMarkAsRead}
+                onMarkAllAsRead={handleMarkAllAsRead}
+                onClearAll={handleClearAllNotifications}
+                onOpenFriendRequests={() => {
+                  setIsFriendModalOpen(true);
+                }}
+              />
+            </div>
           </nav>
         </div>
 
