@@ -23,6 +23,8 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const onConnect = () => {
         console.log('⚡ [Socket.IO] Đã kết nối tới server:', socket.id);
         setIsConnected(true);
+        // Bắn thông báo cho Backend biết user vừa online
+        socket.emit('is_online');
       };
 
       const onDisconnect = (reason: string) => {
@@ -42,6 +44,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // Nếu socket đã kết nối trước đó
       if (socket.connected) {
         setIsConnected(true);
+        socket.emit('is_online');
       }
 
       return () => {

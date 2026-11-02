@@ -5,95 +5,6 @@ import type {
   IFriendActionResponse,
 } from '../interfaces';
 
-// Dữ liệu mẫu ban đầu để giao diện hoạt động mượt mà ngay cả khi chưa chạy xong API backend
-const MOCK_USERS: IFriendUser[] = [
-  {
-    _id: 'user-mock-1',
-    username: 'thanh_tung_dev',
-    fullName: 'Nguyễn Thanh Tùng',
-    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-    email: 'tung.nguyen@example.com',
-    phone: '0987654321',
-    gender: 'Male',
-    isOnline: true,
-    relationshipStatus: 'none',
-    bio: 'Fullstack Developer đam mê React & Node.js 💻',
-  },
-  {
-    _id: 'user-mock-2',
-    username: 'ha_linh_design',
-    fullName: 'Trần Hà Linh',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    email: 'halinh.design@example.com',
-    phone: '0912345678',
-    gender: 'Female',
-    isOnline: true,
-    relationshipStatus: 'pending_received',
-    bio: 'UI/UX Designer • Yêu thích phong cách tối giản & màu sắc pastel ✨',
-  },
-  {
-    _id: 'user-mock-3',
-    username: 'minh_quan_backend',
-    fullName: 'Đỗ Minh Quân',
-    avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80',
-    email: 'quan.do@example.com',
-    phone: '0903112233',
-    gender: 'Male',
-    isOnline: false,
-    relationshipStatus: 'friend',
-    bio: 'Backend Engineer • Golang, NestJS & Microservices ⚙️',
-  },
-  {
-    _id: 'user-mock-4',
-    username: 'hoang_anh_99',
-    fullName: 'Lê Hoàng Anh',
-    avatar: 'https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=150&auto=format&fit=crop&q=80',
-    email: 'hoanganh99@example.com',
-    phone: '0934567890',
-    gender: 'Male',
-    isOnline: true,
-    relationshipStatus: 'pending_sent',
-    bio: 'DevOps & Cloud Architect ☁️',
-  },
-  {
-    _id: 'user-mock-5',
-    username: 'mai_phuong_pm',
-    fullName: 'Vũ Mai Phương',
-    avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
-    email: 'phuong.vu@example.com',
-    phone: '0978901234',
-    gender: 'Female',
-    isOnline: false,
-    relationshipStatus: 'friend',
-    bio: 'Product Manager @ OpenChat 🚀',
-  },
-];
-
-const MOCK_REQUESTS: IFriendRequest[] = [
-  {
-    _id: 'req-mock-1',
-    fromUser: MOCK_USERS[1], // Hà Linh gửi lời mời cho bạn
-    toUser: {
-      _id: 'me',
-      username: 'currentUser',
-      fullName: 'Bạn',
-    },
-    status: 'pending',
-    createdAt: '10 phút trước',
-  },
-  {
-    _id: 'req-mock-2',
-    fromUser: {
-      _id: 'me',
-      username: 'currentUser',
-      fullName: 'Bạn',
-    },
-    toUser: MOCK_USERS[3], // Bạn đã gửi lời mời cho Hoàng Anh
-    status: 'pending',
-    createdAt: 'Hôm qua',
-  },
-];
-
 export const friendService = {
   /**
    * 1. Tìm kiếm và lấy danh sách tất cả người dùng
@@ -151,19 +62,10 @@ export const friendService = {
 
       return { users: [], total: 0, totalPage: 1, page: 1 };
     } catch (error) {
-      console.warn('[friendService] API /users/all-user lỗi hoặc chưa có token, dùng dữ liệu giả lập:', error);
-      const q = (name || '').toLowerCase().trim();
-      const filtered = q
-        ? MOCK_USERS.filter(
-            (u) =>
-              u.username.toLowerCase().includes(q) ||
-              (u.fullName && u.fullName.toLowerCase().includes(q))
-          )
-        : MOCK_USERS;
-
+      console.error('[friendService] API /users/all-user lỗi:', error);
       return {
-        users: filtered,
-        total: filtered.length,
+        users: [],
+        total: 0,
         totalPage: 1,
         page: 1,
       };
@@ -195,8 +97,8 @@ export const friendService = {
       }
       return [];
     } catch (error) {
-      console.warn('[friendService] API /users/friend lỗi hoặc chưa có token, dùng dữ liệu giả lập:', error);
-      return MOCK_USERS.filter((u) => u.relationshipStatus === 'friend');
+      console.error('[friendService] API /users/friend lỗi:', error);
+      return [];
     }
   },
 
@@ -266,10 +168,10 @@ export const friendService = {
 
       return { received, sent };
     } catch (error) {
-      console.warn('[friendService] API /users/request?type=... lỗi hoặc chưa có token, dùng dữ liệu giả lập:', error);
+      console.error('[friendService] API /users/request?type=... lỗi:', error);
       return {
-        received: MOCK_REQUESTS.filter((r) => r.fromUser._id !== 'me'),
-        sent: MOCK_REQUESTS.filter((r) => r.fromUser._id === 'me'),
+        received: [],
+        sent: [],
       };
     }
   },

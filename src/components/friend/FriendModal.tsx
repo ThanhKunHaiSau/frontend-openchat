@@ -1,13 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   X,
   Search,
   UserPlus,
-  Users,
   Check,
   Clock,
   MessageCircle,
-  Trash2,
   UserCheck,
   ChevronLeft,
   ChevronRight,
@@ -24,6 +22,7 @@ interface FriendModalProps {
   onClose: () => void;
   onToast: (type: 'success' | 'error' | 'info', title: string, message: string) => void;
   onStartChat?: (user: IFriendUser) => void;
+  onFriendChange?: () => void;
 }
 
 export const FriendModal: React.FC<FriendModalProps> = ({
@@ -31,9 +30,10 @@ export const FriendModal: React.FC<FriendModalProps> = ({
   onClose,
   onToast,
   onStartChat,
+  onFriendChange,
 }) => {
   const { socket, isConnected } = useSocket();
-  const [activeTab, setActiveTab] = useState<'search' | 'requests' | 'friends'>('search');
+  const [activeTab, setActiveTab] = useState<'search' | 'requests'>('search');
   const [requestSubTab, setRequestSubTab] = useState<'received' | 'sent'>('received');
 
   // Search & All Users state
@@ -44,11 +44,7 @@ export const FriendModal: React.FC<FriendModalProps> = ({
   const [totalUsers, setTotalUsers] = useState(0);
   const [totalPage, setTotalPage] = useState(1);
 
-  // Friends & Requests state
-  const [friends, setFriends] = useState<IFriendUser[]>([]);
-  const [isLoadingFriends, setIsLoadingFriends] = useState(false);
-  const [friendFilterQuery, setFriendFilterQuery] = useState('');
-
+  // Requests state
   const [friendRequests, setFriendRequests] = useState<{
     received: IFriendRequest[];
     sent: IFriendRequest[];
@@ -58,19 +54,13 @@ export const FriendModal: React.FC<FriendModalProps> = ({
   // Loading state for individual actions (by userId or requestId)
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
-  // Load friends and requests
-  const loadFriendsData = useCallback(async () => {
-    try {
-      setIsLoadingFriends(true);
-      const data = await friendService.getFriends();
-      setFriends(data);
-    } catch (err: any) {
-      console.error('Lỗi khi tải danh sách bạn bè:', err);
-    } finally {
-      setIsLoadingFriends(false);
-    }
-  }, []);
+  // Ref cho onToast để useCallback không bao giờ bị re-create khi prop thay đổi
+  const onToastRef = useRef(onToast);
+  useEffect(() => {
+    onToastRef.current = onToast;
+  }, [onToast]);
 
+  // Load requests
   const loadRequestsData = useCallback(async () => {
     try {
       setIsLoadingRequests(true);
@@ -94,26 +84,36 @@ export const FriendModal: React.FC<FriendModalProps> = ({
         setTotalPage(res.totalPage);
         setPage(res.page);
       } catch (err: any) {
-        onToast('error', 'Lỗi', err.message || 'Không thể tải danh sách người dùng');
+        onToastRef.current('error', 'Lỗi', err.message || 'Không thể tải danh sách người dùng');
       } finally {
         setIsSearching(false);
       }
     },
-    [onToast]
+    []
   );
 
-  // Load danh sách người dùng và bạn bè khi mở modal
+  // Ref theo dõi trạng thái modal để chỉ tải dữ liệu khi modal vừa được mở (false -> true)
+  const prevIsOpenRef = useRef(false);
+
   useEffect(() => {
-    if (isOpen) {
-      loadFriendsData();
+    if (isOpen && !prevIsOpenRef.current) {
       loadRequestsData();
       fetchUsersList('', 1);
     }
-  }, [isOpen, loadFriendsData, loadRequestsData, fetchUsersList]);
+    prevIsOpenRef.current = isOpen;
+  }, [isOpen, loadRequestsData, fetchUsersList]);
 
-  // Debounced search khi gõ vào ô tìm kiếm
+  // Debounced search khi gõ vào ô tìm kiếm (bỏ qua render ban đầu nếu query rỗng)
+  const isFirstSearch = useRef(true);
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      isFirstSearch.current = true;
+      return;
+    }
+    if (isFirstSearch.current) {
+      isFirstSearch.current = false;
+      return;
+    }
     const timer = setTimeout(() => {
       fetchUsersList(searchQuery, 1);
     }, 350);
@@ -161,7 +161,6 @@ export const FriendModal: React.FC<FriendModalProps> = ({
   // Lắng nghe sự kiện đối phương chấp nhận lời mời kết bạn Realtime
   useSocketEvent('res_accept_contact', (data: any) => {
     if (isOpen) {
-      loadFriendsData();
       loadRequestsData();
       const senderId = data?.userCurent?.id;
       if (senderId) {
@@ -169,6 +168,7 @@ export const FriendModal: React.FC<FriendModalProps> = ({
           prev.map((u) => (u._id === senderId ? { ...u, relationshipStatus: 'friend' } : u))
         );
       }
+      onFriendChange?.();
     }
   });
 
@@ -216,14 +216,14 @@ export const FriendModal: React.FC<FriendModalProps> = ({
           });
         }
 
-        // Xóa khỏi danh sách requests và thêm vào friends
+        // Xóa khỏi danh sách requests
         setFriendRequests((prev) => ({
           ...prev,
           received: prev.received.filter((r) => r._id !== requestId),
         }));
         setSearchResults((prev) => prev.filter((u) => u._id !== fromUser._id));
         setTotalUsers((prev) => Math.max(0, prev - 1));
-        loadFriendsData();
+        onFriendChange?.();
       }
     } catch (err: any) {
       onToast('error', 'Lỗi', err.message || 'Không thể chấp nhận lời mời');
@@ -284,46 +284,13 @@ export const FriendModal: React.FC<FriendModalProps> = ({
     }
   };
 
-  // 5. Hủy kết bạn (Unfriend)
-  const handleUnfriend = async (friend: IFriendUser) => {
-    if (!window.confirm(`Bạn có chắc muốn hủy kết bạn với ${friend.fullName || friend.username}?`)) {
-      return;
-    }
-    try {
-      setActionLoadingId(friend._id);
-      const res = await friendService.unfriend(friend._id);
-      if (res.success) {
-        onToast('info', 'Đã hủy kết bạn', `Đã hủy kết bạn với ${friend.fullName || friend.username}`);
-        setFriends((prev) => prev.filter((f) => f._id !== friend._id));
-        setSearchResults((prev) =>
-          prev.map((u) => (u._id === friend._id ? { ...u, relationshipStatus: 'none' } : u))
-        );
-      }
-    } catch (err: any) {
-      onToast('error', 'Lỗi', err.message || 'Không thể hủy kết bạn');
-    } finally {
-      setActionLoadingId(null);
-    }
-  };
-
-  // 6. Nhắn tin trực tiếp với bạn
-  const handleStartChatWith = (user: IFriendUser) => {
+  // Mở khung trò chuyện với bạn bè
+  const handleStartChatWith = (targetUser: IFriendUser) => {
     if (onStartChat) {
-      onStartChat(user);
+      onStartChat(targetUser);
     }
     onClose();
   };
-
-  // Friends list filtered by search
-  const filteredFriends = friends.filter((f) => {
-    const q = friendFilterQuery.toLowerCase().trim();
-    if (!q) return true;
-    return (
-      f.username.toLowerCase().includes(q) ||
-      (f.fullName && f.fullName.toLowerCase().includes(q)) ||
-      (f.email && f.email.toLowerCase().includes(q))
-    );
-  });
 
   const pendingReceivedCount = friendRequests.received.length;
 
@@ -337,8 +304,8 @@ export const FriendModal: React.FC<FriendModalProps> = ({
               <UserPlus size={22} />
             </div>
             <div>
-              <h3>Kết bạn & Tìm kiếm bạn bè</h3>
-              <p>Mở rộng mạng lưới kết nối và trò chuyện tức thì trên OpenChat</p>
+              <h3>Thêm bạn & Lời mời kết bạn</h3>
+              <p>Tìm kiếm bạn bè mới và quản lý lời mời kết bạn</p>
             </div>
           </div>
           <button
@@ -372,15 +339,6 @@ export const FriendModal: React.FC<FriendModalProps> = ({
             {pendingReceivedCount > 0 && (
               <span className="tab-badge">{pendingReceivedCount}</span>
             )}
-          </button>
-
-          <button
-            type="button"
-            className={`friend-tab-btn ${activeTab === 'friends' ? 'active' : ''}`}
-            onClick={() => setActiveTab('friends')}
-          >
-            <Users size={16} />
-            <span>Bạn bè ({friends.length})</span>
           </button>
         </nav>
 
@@ -750,119 +708,6 @@ export const FriendModal: React.FC<FriendModalProps> = ({
           </div>
         )}
 
-        {/* Tab 3: Friends List */}
-        {activeTab === 'friends' && (
-          <div className="friend-modal-content">
-            <div className="friend-search-container">
-              <Search size={18} className="friend-search-icon" />
-              <input
-                type="text"
-                className="friend-search-input"
-                placeholder="Lọc trong danh sách bạn bè..."
-                value={friendFilterQuery}
-                onChange={(e) => setFriendFilterQuery(e.target.value)}
-              />
-              {friendFilterQuery && (
-                <button
-                  type="button"
-                  className="friend-search-clear-btn"
-                  onClick={() => setFriendFilterQuery('')}
-                >
-                  <X size={15} />
-                </button>
-              )}
-            </div>
-
-            {/* Helper banner for API */}
-            <div className="api-integration-banner">
-              <Info size={16} />
-              <span>
-                API Đang dùng: <code>GET /api/v1/users/friend</code> & <code>PUT /api/v1/contacts/respone</code>
-              </span>
-            </div>
-
-            {isLoadingFriends ? (
-              <div className="friend-loading-box">
-                <Loader2 size={28} className="spin-loader" />
-                <span>Đang tải danh sách bạn bè...</span>
-              </div>
-            ) : filteredFriends.length === 0 ? (
-              <div className="friend-empty-state">
-                <Users size={36} className="friend-empty-icon" />
-                <h4>
-                  {friends.length === 0
-                    ? 'Bạn chưa có người bạn nào'
-                    : 'Không tìm thấy bạn bè phù hợp'}
-                </h4>
-                <p>
-                  {friends.length === 0
-                    ? 'Hãy chuyển sang tab "Tìm kiếm bạn mới" để kết nối với mọi người.'
-                    : 'Hãy kiểm tra lại từ khóa tìm kiếm.'}
-                </p>
-              </div>
-            ) : (
-              <div className="friend-cards-list">
-                {filteredFriends.map((f) => {
-                  const isBusy = actionLoadingId === f._id;
-
-                  return (
-                    <div key={f._id} className="friend-user-card">
-                      <div className="card-left-info">
-                        <div className="card-avatar-wrapper">
-                          {f.avatar ? (
-                            <img src={f.avatar} alt={f.username} className="card-avatar-img" />
-                          ) : (
-                            <div className="card-avatar-fallback">
-                              {f.username.charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                          {f.isOnline && <span className="card-online-dot" />}
-                        </div>
-
-                        <div className="card-details">
-                          <div className="card-name-row">
-                            <span className="card-fullname">{f.fullName || f.username}</span>
-                            <span className="card-username">@{f.username}</span>
-                          </div>
-                          {f.bio && <p className="card-bio">{f.bio}</p>}
-                          <span className="card-contact-meta">
-                            {f.isOnline ? '🟢 Đang trực tuyến' : 'Offline'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="card-actions-wrapper">
-                        <button
-                          type="button"
-                          className="btn-friend-action btn-chat-friend"
-                          onClick={() => handleStartChatWith(f)}
-                          title="Mở khung trò chuyện"
-                        >
-                          <MessageCircle size={15} />
-                          <span>Nhắn tin</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          className="btn-friend-action btn-unfriend"
-                          disabled={isBusy}
-                          onClick={() => handleUnfriend(f)}
-                          title="Hủy kết bạn"
-                        >
-                          {isBusy ? (
-                            <Loader2 size={15} className="spin-loader" />
-                          ) : (
-                            <Trash2 size={15} />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );
