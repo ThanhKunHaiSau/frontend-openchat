@@ -158,6 +158,20 @@ export const FriendModal: React.FC<FriendModalProps> = ({
     }
   });
 
+  // Lắng nghe sự kiện đối phương chấp nhận lời mời kết bạn Realtime
+  useSocketEvent('res_accept_contact', (data: any) => {
+    if (isOpen) {
+      loadFriendsData();
+      loadRequestsData();
+      const senderId = data?.userCurent?.id;
+      if (senderId) {
+        setSearchResults((prev) =>
+          prev.map((u) => (u._id === senderId ? { ...u, relationshipStatus: 'friend' } : u))
+        );
+      }
+    }
+  });
+
   if (!isOpen) return null;
 
   // 1. Gửi lời mời kết bạn
@@ -194,6 +208,14 @@ export const FriendModal: React.FC<FriendModalProps> = ({
       const res = await friendService.acceptFriendRequest(fromUser._id || requestId);
       if (res.success) {
         onToast('success', 'Kết bạn thành công', `Bạn và ${fromUser.fullName || fromUser.username} đã trở thành bạn bè!`);
+
+        // Bắn socket thông báo sự kiện accept_contact sang đối phương
+        if (socket && isConnected) {
+          socket.emit('accept_contact', {
+            contactId: fromUser._id || requestId,
+          });
+        }
+
         // Xóa khỏi danh sách requests và thêm vào friends
         setFriendRequests((prev) => ({
           ...prev,

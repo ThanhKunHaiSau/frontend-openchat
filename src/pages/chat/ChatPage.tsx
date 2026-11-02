@@ -155,6 +155,34 @@ export const ChatPage: React.FC = () => {
     setNotifications((prev) => [newNotif, ...prev]);
   });
 
+  // Lắng nghe sự kiện đối phương chấp nhận kết bạn Realtime
+  useSocketEvent('res_accept_contact', (data: any) => {
+    console.log('⚡ [Socket] Đối phương đã chấp nhận kết bạn:', data);
+    const senderName = data?.userCurent?.username || 'Đối phương';
+    const message = data?.message || `${senderName} đã chấp nhận lời mời kết bạn!`;
+
+    // 1. Phát chuông thông báo
+    playNotificationSound();
+
+    // 2. Thêm vào chuông thông báo
+    const newNotif: INotificationItem = {
+      id: data?.id || `notif-${Date.now()}-${Math.random()}`,
+      title: 'Kết bạn thành công 🎉',
+      message,
+      type: 'friend_request',
+      senderName,
+      senderAvatar: data?.userCurent?.avatar,
+      senderId: data?.userCurent?.id,
+      createdAt: data?.createdAt || new Date().toISOString(),
+      isRead: false,
+      data,
+    };
+    setNotifications((prev) => [newNotif, ...prev]);
+
+    // 3. Hiện Toast
+    addToast('success', 'Kết bạn thành công 🎉', message);
+  });
+
   const addToast = (type: ToastMessage['type'], title: string, message: string) => {
     const id = `toast-${Date.now()}-${Math.random()}`;
     setToasts((prev) => [...prev, { id, type, title, message }]);
