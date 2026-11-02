@@ -3,3 +3,4 @@ export * from './auth.service';
 export * from './friend.service';
 export * from './socket.service';
 export * from './notification.service';
+export * from './chat.service';
