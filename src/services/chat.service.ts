@@ -100,5 +100,122 @@ export const chatService = {
       throw error;
     }
   },
+
+  /**
+   * 5. Tạo nhóm trò chuyện mới
+   * POST /conversations/create-group
+   */
+  createGroup: async (
+    memberIds: string[],
+    name?: string
+  ): Promise<IChatConversation | null> => {
+    try {
+      const response = await apiClient.post<{ success: boolean; data: IChatConversation }>(
+        '/conversations/create-group',
+        { memberIds, name }
+      );
+      if (response.data?.success && response.data.data) {
+        return response.data.data;
+      }
+      return null;
+    } catch (error) {
+      console.error('[chatService] Lỗi khi tạo nhóm trò chuyện:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * 6. Cập nhật thông tin cuộc trò chuyện (tên, avatar, theme, background, memberIds)
+   * PUT /conversations/:conversationId
+   */
+  updateConversation: async (
+    conversationId: string,
+    data: {
+      name?: string;
+      avatar?: string;
+      theme?: string | null;
+      background?: {
+        url?: string | null;
+        gradient?: string | null;
+      };
+      memberIds?: string[];
+    }
+  ): Promise<IChatConversation | null> => {
+    try {
+      const response = await apiClient.put<{ success: boolean; data: IChatConversation }>(
+        `/conversations/${conversationId}`,
+        data
+      );
+      if (response.data?.success && response.data.data) {
+        return response.data.data;
+      }
+      return null;
+    } catch (error) {
+      console.error('[chatService] Lỗi khi cập nhật cuộc trò chuyện:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * 7. Cập nhật ảnh đại diện nhóm
+   * PUT /conversations/:conversationId/avatar
+   */
+  updateGroupAvatar: async (
+    conversationId: string,
+    file: File
+  ): Promise<IChatConversation | null> => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await apiClient.put<{ success: boolean; data: IChatConversation }>(
+        `/conversations/${conversationId}/avatar`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+      if (response.data?.success && response.data.data) {
+        return response.data.data;
+      }
+      return null;
+    } catch (error) {
+      console.error('[chatService] Lỗi khi upload ảnh nhóm:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * 8. Cập nhật ảnh nền (wallpaper) cuộc trò chuyện
+   * PUT /conversations/:conversationId/background
+   */
+  updateConversationBackground: async (
+    conversationId: string,
+    file: File
+  ): Promise<IChatConversation | null> => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await apiClient.put<{ success: boolean; data: IChatConversation }>(
+        `/conversations/${conversationId}/background`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+      if (response.data?.success && response.data.data) {
+        return response.data.data;
+      }
+      return null;
+    } catch (error) {
+      console.error('[chatService] Lỗi khi upload hình nền:', error);
+      throw error;
+    }
+  },
 };
 

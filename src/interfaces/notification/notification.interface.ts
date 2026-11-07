@@ -1,4 +1,4 @@
-export type NotificationType = 'friend_request' | 'system' | 'message';
+export type NotificationType = 'friend_request' | 'system' | 'message' | 'group';
 
 export interface INotificationItem {
   id: string;

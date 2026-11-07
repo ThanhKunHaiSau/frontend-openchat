@@ -13,7 +13,7 @@ export interface IChatLastMessage {
   messageId?: string;
   senderId?: IChatUser | string;
   content: string;
-  type?: 'text' | 'image' | 'file';
+  type?: 'text' | 'image' | 'file' | 'sticker';
   createdAt: string;
 }
 
@@ -22,6 +22,11 @@ export interface IChatConversation {
   name?: string;
   avatar?: string;
   type: 'direct' | 'group';
+  theme?: string | null;
+  background?: {
+    url?: string | null;
+    gradient?: string | null;
+  };
   participants: IChatUser[];
   creatorId?: string;
   lastMessage?: IChatLastMessage;
@@ -37,19 +42,21 @@ export interface IChatMessageFile {
   contentType?: string;
 }
 
+export interface IChatReadBy {
+  userId: string | IChatUser;
+  readAt: string;
+}
+
 export interface IChatMessage {
   _id: string;
   conversationId: string;
   senderId: IChatUser;
   receiverId?: string;
   content: string;
-  type: 'text' | 'image' | 'file';
+  type: 'text' | 'image' | 'file' | 'sticker';
   file?: IChatMessageFile;
   status: 'sent' | 'delivered' | 'read';
-  readBy?: {
-    userId: string;
-    readAt: string;
-  }[];
+  readBy?: IChatReadBy[];
   replyTo?: IChatMessage | null;
   createdAt: string;
   updatedAt: string;

@@ -7,6 +7,7 @@ import {
   MessageSquare,
   Sparkles,
   ExternalLink,
+  Users,
 } from 'lucide-react';
 import type { INotificationItem } from '../../interfaces';
 import './NotificationDropdown.css';
@@ -161,6 +162,8 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                     <UserPlus size={10} />
                   ) : item.type === 'message' ? (
                     <MessageSquare size={10} />
+                  ) : item.type === 'group' ? (
+                    <Users size={10} />
                   ) : (
                     <Bell size={10} />
                   )}

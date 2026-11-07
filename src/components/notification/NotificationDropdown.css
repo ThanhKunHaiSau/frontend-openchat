@@ -203,6 +203,10 @@
   background: #ec4899;
 }
 
+.notif-type-badge.group {
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+}
+
 /* Content */
 .notif-content {
   flex: 1;
